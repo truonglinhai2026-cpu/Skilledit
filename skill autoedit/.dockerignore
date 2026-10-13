@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+.venv
+.repair-backups
+__MACOSX
+node_modules
+remotion/node_modules
+remotion/out
+remotion/web/.runtime
+**/.DS_Store

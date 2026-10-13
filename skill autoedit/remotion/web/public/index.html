@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101014">
+    <title>Skilledit — dựng video nhanh</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Skilledit trang chủ">
+          <span class="brand-mark">S</span>
+          <span>skilledit</span>
+        </a>
+        <span class="status-pill"><span class="status-dot"></span> Video Studio</span>
+      </header>
+
+      <section class="hero">
+        <p class="eyebrow">REMOTION VIDEO STUDIO</p>
+        <h1>Từ tư liệu<br><span>thành câu chuyện.</span></h1>
+        <p class="hero-copy">Sắp xếp ảnh và video, chọn khung hình, rồi để Skilledit ghép thành một video tải về.</p>
+      </section>
+
+      <section id="login-panel" class="panel login-panel" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">PRIVATE PREVIEW</p>
+            <h2>Mở studio</h2>
+          </div>
+        </div>
+        <form id="login-form" class="login-form">
+          <label for="password">Mật khẩu ứng dụng</label>
+          <div class="input-row">
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button class="button button-primary" type="submit">Đăng nhập</button>
+          </div>
+          <p class="muted">Mật khẩu do chủ ứng dụng đặt trong biến môi trường APP_PASSWORD.</p>
+          <p id="login-error" class="error-text" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="studio-panel" class="panel" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">01 / MEDIA</p>
+            <h2>Chọn tư liệu</h2>
+          </div>
+          <span class="step-tag">Tối đa 8 tệp</span>
+        </div>
+
+        <label id="dropzone" class="dropzone" for="files">
+          <input id="files" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple>
+          <span class="upload-icon" aria-hidden="true">↑</span>
+          <strong>Kéo thả hoặc chọn tệp</strong>
+          <span class="muted">JPG, PNG, WebP, MP4, MOV hoặc WebM · tối đa 25 MB mỗi tệp</span>
+        </label>
+
+        <div id="file-list-wrap" class="file-list-wrap" hidden>
+          <div class="list-heading">
+            <span>Thứ tự xuất hiện</span>
+            <button id="clear-files" class="text-button" type="button">Xóa tất cả</button>
+          </div>
+          <ol id="file-list" class="file-list"></ol>
+        </div>
+
+        <div class="section-heading settings-heading">
+          <div>
+            <p class="eyebrow">02 / FORMAT</p>
+            <h2>Thiết lập video</h2>
+          </div>
+        </div>
+        <form id="render-form">
+          <div class="settings-grid">
+            <label class="field">
+              <span>Khung hình</span>
+              <select name="aspectRatio">
+                <option value="portrait">Dọc · Reels / TikTok (9:16)</option>
+                <option value="landscape">Ngang · YouTube (16:9)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Thời lượng mỗi tư liệu</span>
+              <select name="duration">
+                <option value="2">2 giây</option>
+                <option value="3">3 giây</option>
+                <option value="4" selected>4 giây</option>
+                <option value="5">5 giây</option>
+                <option value="6">6 giây</option>
+                <option value="7">7 giây</option>
+                <option value="8">8 giây</option>
+              </select>
+            </label>
+          </div>
+          <p id="duration-note" class="muted">Video dài tối đa 30 giây mỗi tác vụ. Video gốc sẽ được cắt theo thời lượng đã chọn; âm thanh gốc được giữ.</p>
+          <button id="render-button" class="button button-primary render-button" type="submit">
+            <span>Dựng video</span><span aria-hidden="true">↗</span>
+          </button>
+        </form>
+
+        <section id="job-panel" class="job-panel" aria-live="polite" hidden>
+          <div class="job-title-row">
+            <div>
+              <p class="eyebrow">03 / RENDER</p>
+              <h2 id="job-title">Đang chuẩn bị</h2>
+            </div>
+            <span id="job-badge" class="step-tag">Đang chờ</span>
+          </div>
+          <div class="progress-track"><span id="progress-bar"></span></div>
+          <p id="job-message" class="muted"></p>
+          <p id="job-error" class="error-text" role="alert"></p>
+          <button id="download-button" class="button button-primary" type="button" hidden>Tải video MP4</button>
+        </section>
+      </section>
+
+      <footer class="footer">
+        <span>MVP · Render thử tối đa 30 giây</span>
+        <span>Tệp tải lên và video sẽ tự xóa sau 1 giờ hoặc khi dịch vụ khởi động lại.</span>
+      </footer>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

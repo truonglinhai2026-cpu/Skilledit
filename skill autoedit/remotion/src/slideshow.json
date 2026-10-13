@@ -1,0 +1,20 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "backgroundColor": "#000000",
+  "items": [
+    {
+      "src": "style_showcase/ai_calendar.png",
+      "type": "image",
+      "durationInSeconds": 3,
+      "fit": "contain"
+    },
+    {
+      "src": "style_showcase/ai_database.png",
+      "type": "image",
+      "durationInSeconds": 3,
+      "fit": "contain"
+    }
+  ]
+}
