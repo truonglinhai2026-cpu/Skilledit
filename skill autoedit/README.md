@@ -53,9 +53,9 @@ The standalone slideshow renderer uses the dependencies in `remotion/`. If they 
 
 ## Web MVP on Render
 
-The experimental web studio accepts up to 8 JPG/PNG/WebP images or MP4/MOV/WebM clips (25 MB each), orders them into one slideshow, and renders a 24 fps MP4 in portrait or landscape format. Each item uses the same 1–8 second duration; one job is limited to 30 seconds. Render jobs run sequentially, and a video can be downloaded for up to one hour.
+The experimental web studio accepts up to 25 JPG/PNG/WebP images or MP4/MOV/WebM clips (25 MB each). Choose one output video, or split the ordered source files as evenly as possible into five consecutive groups and render one video per group. Five-video mode requires at least five source files. Each item uses the same duration; the app limits it so every output stays within 60 seconds. A single source item can be set to 60 seconds. Outputs render sequentially at 24 fps in portrait or landscape format and are available to download for up to one hour.
 
-This is a slideshow MVP, not an automatic professional editing service: it does not analyze footage, select highlights, add captions, or create multiple output videos from one job. Render's free service has limited compute and ephemeral storage. Uploaded media and output files can be lost on restart or redeploy, so this version is for small tests only. Do not upload private or irreplaceable media.
+This is a slideshow MVP, not an automatic professional editing service: it does not analyze footage, select highlights, or add captions. Render's free service has limited compute and ephemeral storage. Rendering five videos or longer videos takes more time and memory; a free instance may restart before finishing. Uploaded media and output files can be lost on restart or redeploy, so this version is for small tests only. Do not upload private or irreplaceable media.
 
 ### Run locally
 

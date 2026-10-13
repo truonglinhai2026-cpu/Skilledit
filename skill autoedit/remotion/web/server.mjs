@@ -56,7 +56,7 @@ const upload = multer({
   limits: {
     fileSize: MAX_FILE_SIZE_BYTES,
     files: MAX_FILES,
-    fields: 2,
+    fields: 3,
     fieldSize: 100,
   },
   fileFilter(_req, file, callback) {
@@ -81,7 +81,13 @@ function getJobResponse(job) {
     progress: job.progress,
     error: job.error,
     createdAt: job.createdAt,
-    downloadUrl: job.status === "done" ? `/api/jobs/${job.id}/download` : undefined,
+    outputs: job.outputs.map((output) => ({
+      index: output.index,
+      status: output.status,
+      downloadUrl: output.status === "done"
+        ? `/api/jobs/${job.id}/download/${output.index}`
+        : undefined,
+    })),
   };
 }
 
@@ -109,46 +115,63 @@ async function renderJob(job) {
   job.status = "rendering";
   job.updatedAt = Date.now();
   const baseUrl = `http://127.0.0.1:${port}`;
-  const items = job.files.map((file) => ({
-    src: `${baseUrl}/api/jobs/${job.id}/assets/${encodeURIComponent(file.filename)}?token=${job.assetToken}`,
-    type: file.type,
-    durationInSeconds: job.options.duration,
-    fit: "cover",
-    muted: false,
-  }));
-  const inputProps = {
-    width: job.options.width,
-    height: job.options.height,
-    fps: 24,
-    backgroundColor: "#101014",
-    items,
-    srcMode: "url",
-  };
-  const outputLocation = path.join(job.directory, "skilledit-video.mp4");
+  let fileOffset = 0;
+  for (const output of job.outputs) {
+    output.status = "rendering";
+    const groupSize = job.options.groupSizes[output.index - 1];
+    const items = job.files
+      .slice(fileOffset, fileOffset + groupSize)
+      .map((file) => ({
+        src: `${baseUrl}/api/jobs/${job.id}/assets/${encodeURIComponent(file.filename)}?token=${job.assetToken}`,
+        type: file.type,
+        durationInSeconds: job.options.duration,
+        fit: "cover",
+        muted: false,
+      }));
+    fileOffset += groupSize;
 
-  const composition = await selectComposition({
-    serveUrl: bundleUrl,
-    id: "WebSlideshow",
-    inputProps,
-  });
+    const inputProps = {
+      width: job.options.width,
+      height: job.options.height,
+      fps: 24,
+      backgroundColor: "#101014",
+      items,
+      srcMode: "url",
+    };
+    const outputLocation = path.join(
+      job.directory,
+      `skilledit-video-${String(output.index).padStart(2, "0")}.mp4`,
+    );
 
-  await renderMedia({
-    composition,
-    serveUrl: bundleUrl,
-    codec: "h264",
-    outputLocation,
-    inputProps,
-    concurrency: 1,
-    crf: 28,
-    pixelFormat: "yuv420p",
-    chromiumOptions: { gl: "swiftshader" },
-    onProgress({ progress }) {
-      job.progress = Math.max(0, Math.min(1, progress));
-      job.updatedAt = Date.now();
-    },
-  });
+    const composition = await selectComposition({
+      serveUrl: bundleUrl,
+      id: "WebSlideshow",
+      inputProps,
+    });
 
-  job.outputLocation = outputLocation;
+    await renderMedia({
+      composition,
+      serveUrl: bundleUrl,
+      codec: "h264",
+      outputLocation,
+      inputProps,
+      concurrency: 1,
+      crf: 28,
+      pixelFormat: "yuv420p",
+      chromiumOptions: { gl: "swiftshader" },
+      onProgress({ progress }) {
+        job.progress = Math.max(
+          0,
+          Math.min(1, (output.index - 1 + progress) / job.outputs.length),
+        );
+        job.updatedAt = Date.now();
+      },
+    });
+
+    output.outputLocation = outputLocation;
+    output.status = "done";
+  }
+
   job.progress = 1;
   job.status = "done";
 }
@@ -166,8 +189,13 @@ async function processQueue() {
         await renderJob(job);
       } catch (error) {
         console.error(`[job ${job.id}] render failed`, error);
+        const currentOutput = job.outputs.find((output) => output.status === "rendering");
+        if (currentOutput) currentOutput.status = "failed";
+        const completedOutputs = job.outputs.filter((output) => output.status === "done").length;
         job.status = "failed";
-        job.error = "Không render được. Kiểm tra định dạng media rồi thử lại.";
+        job.error = completedOutputs > 0
+          ? `Dừng ở video ${completedOutputs + 1}. Đã render xong ${completedOutputs}/${job.outputs.length} video. Bạn vẫn có thể tải các video đã hoàn tất.`
+          : "Không render được. Kiểm tra định dạng media rồi thử lại.";
       } finally {
         activeJobs -= 1;
         job.updatedAt = Date.now();
@@ -293,6 +321,11 @@ app.post("/api/jobs", renderLimiter, async (req, res) => {
         directory,
         files: storedFiles,
         options,
+        outputs: Array.from({ length: options.videoCount }, (_, index) => ({
+          index: index + 1,
+          status: "queued",
+          outputLocation: null,
+        })),
         assetToken: randomBytes(32).toString("hex"),
         status: "queued",
         progress: 0,
@@ -341,15 +374,20 @@ app.get("/api/jobs/:id/assets/:filename", async (req, res) => {
   }
 });
 
-app.get("/api/jobs/:id/download", async (req, res) => {
+app.get("/api/jobs/:id/download/:index", async (req, res) => {
   const job = jobs.get(req.params.id);
-  if (!job || job.status !== "done" || !job.outputLocation) {
+  const outputIndex = Number(req.params.index);
+  const output = job?.outputs.find((item) => item.index === outputIndex);
+  if (!job || !Number.isInteger(outputIndex) || !output || output.status !== "done" || !output.outputLocation) {
     res.status(404).json({ error: "Video chưa sẵn sàng hoặc tác vụ đã hết hạn." });
     return;
   }
   try {
-    await stat(job.outputLocation);
-    res.download(job.outputLocation, "skilledit-video.mp4");
+    await stat(output.outputLocation);
+    res.download(
+      output.outputLocation,
+      `skilledit-video-${String(output.index).padStart(2, "0")}.mp4`,
+    );
   } catch {
     res.status(404).json({ error: "Tệp video đã hết hạn." });
   }

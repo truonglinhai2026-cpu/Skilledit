@@ -79,6 +79,9 @@ select:focus, input[type="password"]:focus { border-color: var(--lime); }
 .progress-track { height: 5px; overflow: hidden; border-radius: 9px; background: #303039; }
 .progress-track span { display: block; width: 0; height: 100%; border-radius: 9px; background: var(--lime); transition: width .3s; }
 .job-panel .muted { margin: 11px 0; }
+.output-list { display: grid; gap: 8px; margin-top: 14px; }
+.output-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 9px; border-top: 1px solid var(--line); color: #e8e6ec; font-size: 12px; }
+.output-row .muted { margin: 0; }
 .error-text { min-height: 0; margin: 8px 0; color: #ff9696; font-size: 12px; }
 .login-panel { max-width: 540px; }
 .login-form label { display: block; margin-bottom: 8px; color: #d8d6df; font-size: 12px; }

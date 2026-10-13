@@ -20,7 +20,7 @@
       <section class="hero">
         <p class="eyebrow">REMOTION VIDEO STUDIO</p>
         <h1>Từ tư liệu<br><span>thành câu chuyện.</span></h1>
-        <p class="hero-copy">Sắp xếp ảnh và video, chọn khung hình, rồi để Skilledit ghép thành một video tải về.</p>
+        <p class="hero-copy">Sắp xếp tư liệu, chia thành 1 hoặc 5 nhóm, rồi tải video MP4 sau khi dựng.</p>
       </section>
 
       <section id="login-panel" class="panel login-panel" hidden>
@@ -47,19 +47,19 @@
             <p class="eyebrow">01 / MEDIA</p>
             <h2>Chọn tư liệu</h2>
           </div>
-          <span class="step-tag">Tối đa 8 tệp</span>
+          <span class="step-tag">Tối đa 25 tệp</span>
         </div>
 
         <label id="dropzone" class="dropzone" for="files">
           <input id="files" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple>
           <span class="upload-icon" aria-hidden="true">↑</span>
           <strong>Kéo thả hoặc chọn tệp</strong>
-          <span class="muted">JPG, PNG, WebP, MP4, MOV hoặc WebM · tối đa 25 MB mỗi tệp</span>
+          <span class="muted">JPG, PNG, WebP, MP4, MOV hoặc WebM · tối đa 25 tệp, 25 MB mỗi tệp</span>
         </label>
 
         <div id="file-list-wrap" class="file-list-wrap" hidden>
           <div class="list-heading">
-            <span>Thứ tự xuất hiện</span>
+            <span>Thứ tự chia nhóm video</span>
             <button id="clear-files" class="text-button" type="button">Xóa tất cả</button>
           </div>
           <ol id="file-list" class="file-list"></ol>
@@ -74,6 +74,13 @@
         <form id="render-form">
           <div class="settings-grid">
             <label class="field">
+              <span>Số video cần tạo</span>
+              <select name="videoCount">
+                <option value="1" selected>1 video</option>
+                <option value="5">5 video, chia tư liệu thành 5 nhóm</option>
+              </select>
+            </label>
+            <label class="field">
               <span>Khung hình</span>
               <select name="aspectRatio">
                 <option value="portrait">Dọc · Reels / TikTok (9:16)</option>
@@ -83,17 +90,25 @@
             <label class="field">
               <span>Thời lượng mỗi tư liệu</span>
               <select name="duration">
+                <option value="1">1 giây</option>
                 <option value="2">2 giây</option>
                 <option value="3">3 giây</option>
                 <option value="4" selected>4 giây</option>
                 <option value="5">5 giây</option>
                 <option value="6">6 giây</option>
-                <option value="7">7 giây</option>
                 <option value="8">8 giây</option>
+                <option value="10">10 giây</option>
+                <option value="12">12 giây</option>
+                <option value="15">15 giây</option>
+                <option value="20">20 giây</option>
+                <option value="30">30 giây</option>
+                <option value="45">45 giây</option>
+                <option value="60">60 giây</option>
               </select>
             </label>
           </div>
-          <p id="duration-note" class="muted">Video dài tối đa 30 giây mỗi tác vụ. Video gốc sẽ được cắt theo thời lượng đã chọn; âm thanh gốc được giữ.</p>
+          <p id="video-count-note" class="muted"></p>
+          <p id="duration-note" class="muted"></p>
           <button id="render-button" class="button button-primary render-button" type="submit">
             <span>Dựng video</span><span aria-hidden="true">↗</span>
           </button>
@@ -110,12 +125,12 @@
           <div class="progress-track"><span id="progress-bar"></span></div>
           <p id="job-message" class="muted"></p>
           <p id="job-error" class="error-text" role="alert"></p>
-          <button id="download-button" class="button button-primary" type="button" hidden>Tải video MP4</button>
+          <div id="output-list" class="output-list"></div>
         </section>
       </section>
 
       <footer class="footer">
-        <span>MVP · Render thử tối đa 30 giây</span>
+        <span>MVP · Tối đa 5 video, 60 giây mỗi video</span>
         <span>Tệp tải lên và video sẽ tự xóa sau 1 giờ hoặc khi dịch vụ khởi động lại.</span>
       </footer>
     </main>

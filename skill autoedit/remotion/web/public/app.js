@@ -8,10 +8,11 @@ const fileList = document.querySelector("#file-list");
 const fileListWrap = document.querySelector("#file-list-wrap");
 const renderButton = document.querySelector("#render-button");
 const jobPanel = document.querySelector("#job-panel");
-const downloadButton = document.querySelector("#download-button");
-const maxFiles = 8;
+const outputList = document.querySelector("#output-list");
+const maxFiles = 25;
 const maxFileBytes = 25 * 1024 * 1024;
-const maxJobSeconds = 30;
+const maxJobSeconds = 60;
+const maxClipSeconds = 60;
 let selectedFiles = [];
 let activeJobId = null;
 
@@ -45,9 +46,21 @@ function showStudio() {
 function showFiles() {
   fileList.replaceChildren();
   fileListWrap.hidden = selectedFiles.length === 0;
+  const videoCount = Number(renderForm.elements.videoCount.value);
+  const groupSizes = selectedFiles.length >= videoCount
+    ? getBalancedGroupSizes(selectedFiles.length, videoCount)
+    : [];
+  let groupIndex = -1;
+  let groupEnd = 0;
   selectedFiles.forEach((file, index) => {
     const row = document.createElement("li");
     row.className = "file-row";
+    if (groupSizes.length > 0) {
+      while (index >= groupEnd) {
+        groupEnd += groupSizes[groupIndex + 1];
+        groupIndex += 1;
+      }
+    }
 
     const number = document.createElement("span");
     number.className = "file-number";
@@ -59,7 +72,10 @@ function showFiles() {
     name.textContent = file.name;
     const info = document.createElement("span");
     info.className = "muted";
-    info.textContent = `${file.type.startsWith("video/") ? "Video" : "Ảnh"} · ${formatBytes(file.size)}`;
+    const groupLabel = groupIndex >= 0
+      ? ` · Video ${String(groupIndex + 1).padStart(2, "0")}`
+      : "";
+    info.textContent = `${file.type.startsWith("video/") ? "Video" : "Ảnh"} · ${formatBytes(file.size)}${groupLabel}`;
     details.append(name, info);
 
     const controls = document.createElement("span");
@@ -74,6 +90,7 @@ function showFiles() {
     row.append(number, details, controls);
     fileList.append(row);
   });
+  updateFormSummary();
 }
 
 function makeControlButton(label, text, disabled, onClick) {
@@ -95,6 +112,15 @@ function moveFile(index, offset) {
   showFiles();
 }
 
+function getBalancedGroupSizes(fileCount, groupCount) {
+  const baseSize = Math.floor(fileCount / groupCount);
+  const largerGroupCount = fileCount % groupCount;
+  return Array.from(
+    { length: groupCount },
+    (_, index) => baseSize + (index < largerGroupCount ? 1 : 0),
+  );
+}
+
 function setJobState(job) {
   const title = document.querySelector("#job-title");
   const badge = document.querySelector("#job-badge");
@@ -109,12 +135,41 @@ function setJobState(job) {
   };
   const [badgeText, messageText] = labels[job.status] || ["Đang xử lý", "Đang kiểm tra trạng thái."];
 
-  title.textContent = job.status === "done" ? "Video đã sẵn sàng" : "Đang tạo video";
+  title.textContent = job.status === "done"
+    ? "Video đã sẵn sàng"
+    : job.status === "failed" && job.outputs?.some((output) => output.status === "done")
+      ? "Một số video đã hoàn tất"
+      : "Đang tạo video";
   badge.textContent = badgeText;
   message.textContent = messageText;
   error.textContent = job.error || "";
   progressBar.style.width = `${Math.round((job.progress || 0) * 100)}%`;
-  downloadButton.hidden = job.status !== "done";
+  outputList.replaceChildren();
+  for (const output of job.outputs || []) {
+    const row = document.createElement("div");
+    row.className = "output-row";
+    const label = document.createElement("span");
+    label.textContent = `Video ${String(output.index).padStart(2, "0")}`;
+    row.append(label);
+    if (output.status === "done") {
+      const button = document.createElement("button");
+      button.className = "button button-primary";
+      button.type = "button";
+      button.textContent = `Tải video ${String(output.index).padStart(2, "0")}`;
+      button.addEventListener("click", () => downloadOutput(output.index));
+      row.append(button);
+    } else {
+      const state = document.createElement("span");
+      state.className = "muted";
+      state.textContent = output.status === "failed"
+        ? "Render lỗi"
+        : output.status === "rendering"
+          ? "Đang render"
+          : "Đang chờ";
+      row.append(state);
+    }
+    outputList.append(row);
+  }
 
   if (job.status === "done" || job.status === "failed") {
     renderButton.disabled = false;
@@ -152,7 +207,7 @@ function addFiles(incoming) {
     return;
   }
   if (selectedFiles.length + incoming.length > maxFiles) {
-    window.alert(`Chỉ chọn tối đa ${maxFiles} tệp cho một video.`);
+    window.alert(`Chỉ chọn tối đa ${maxFiles} tệp cho một lần render.`);
     return;
   }
   selectedFiles = selectedFiles.concat(incoming);
@@ -171,13 +226,39 @@ dropzone.addEventListener("drop", (event) => {
   addFiles(Array.from(event.dataTransfer?.files || []));
 });
 
+function updateFormSummary() {
+  const videoCount = Number(renderForm.elements.videoCount.value);
+  const durationSelect = renderForm.elements.duration;
+  const largestGroupSize = selectedFiles.length >= videoCount
+    ? Math.ceil(selectedFiles.length / videoCount)
+    : 1;
+  const maxDuration = Math.min(maxClipSeconds, Math.floor(maxJobSeconds / largestGroupSize));
+  const availableDurations = Array.from(durationSelect.options)
+    .filter((option) => Number(option.value) <= maxDuration);
+  const allowedDuration = Number(availableDurations.at(-1).value);
+  for (const option of durationSelect.options) {
+    option.disabled = Number(option.value) > maxDuration;
+  }
+  if (Number(durationSelect.value) > maxDuration) {
+    durationSelect.value = String(allowedDuration);
+  }
+  document.querySelector("#video-count-note").textContent = videoCount === 5
+    ? `Chọn từ 5 đến ${maxFiles} tệp. Tệp được chia tuần tự, cân bằng thành 5 nhóm để tạo 5 video riêng.`
+    : `Chọn từ 1 đến ${maxFiles} tệp để tạo một video.`;
+  document.querySelector("#duration-note").textContent =
+    `Mỗi tư liệu tối đa ${allowedDuration} giây với số tệp hiện tại; mỗi video không quá ${maxJobSeconds} giây. Video gốc giữ âm thanh.`;
+  renderButton.querySelector("span:first-child").textContent = `Dựng ${videoCount} video`;
+}
+
+renderForm.elements.videoCount.addEventListener("change", () => {
+  showFiles();
+});
+renderForm.elements.duration.addEventListener("change", updateFormSummary);
 document.querySelector("#clear-files").addEventListener("click", () => {
   selectedFiles = [];
   showFiles();
 });
-
-document.querySelector("#duration-note").textContent =
-  `Mỗi tệp từ 1–8 giây; tổng tối đa ${maxJobSeconds} giây. Video gốc sẽ được cắt theo thời lượng đã chọn; âm thanh gốc được giữ.`;
+updateFormSummary();
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -210,9 +291,16 @@ renderForm.addEventListener("submit", async (event) => {
   }
 
   const values = new FormData(renderForm);
+  const videoCount = Number(values.get("videoCount"));
   const duration = Number(values.get("duration"));
-  if (duration * selectedFiles.length > maxJobSeconds) {
-    jobError.textContent = `Tổng thời lượng vượt quá ${maxJobSeconds} giây. Hãy giảm thời lượng mỗi tệp hoặc bỏ bớt tệp.`;
+  if (selectedFiles.length < videoCount) {
+    jobError.textContent = `Cần ít nhất ${videoCount} tệp để chia thành ${videoCount} video.`;
+    jobPanel.hidden = false;
+    return;
+  }
+  const largestGroupSize = Math.ceil(selectedFiles.length / videoCount);
+  if (duration * largestGroupSize > maxJobSeconds) {
+    jobError.textContent = `Mỗi video sẽ vượt quá ${maxJobSeconds} giây. Hãy giảm thời lượng mỗi tư liệu hoặc bỏ bớt tệp.`;
     jobPanel.hidden = false;
     return;
   }
@@ -221,11 +309,12 @@ renderForm.addEventListener("submit", async (event) => {
   selectedFiles.forEach((file) => body.append("files", file, file.name));
   body.append("duration", String(values.get("duration")));
   body.append("aspectRatio", String(values.get("aspectRatio")));
+  body.append("videoCount", String(videoCount));
 
   renderButton.disabled = true;
   renderButton.querySelector("span:first-child").textContent = "Đang tải lên…";
   jobPanel.hidden = false;
-  downloadButton.hidden = true;
+  outputList.replaceChildren();
   try {
     const response = await request("/api/jobs", { method: "POST", body });
     const result = await response.json();
@@ -240,11 +329,13 @@ renderForm.addEventListener("submit", async (event) => {
   }
 });
 
-downloadButton.addEventListener("click", async () => {
+async function downloadOutput(index) {
   if (!activeJobId) return;
-  downloadButton.disabled = true;
+  const button = Array.from(outputList.querySelectorAll("button"))
+    .find((candidate) => candidate.textContent.endsWith(String(index).padStart(2, "0")));
+  if (button) button.disabled = true;
   try {
-    const response = await request(`/api/jobs/${activeJobId}/download`);
+    const response = await request(`/api/jobs/${activeJobId}/download/${index}`);
     if (!response.ok) {
       const result = await response.json();
       throw new Error(result.error || "Không tải được video.");
@@ -253,15 +344,15 @@ downloadButton.addEventListener("click", async () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "skilledit-video.mp4";
+    link.download = `skilledit-video-${String(index).padStart(2, "0")}.mp4`;
     link.click();
     URL.revokeObjectURL(url);
   } catch (error) {
     document.querySelector("#job-error").textContent = error.message;
   } finally {
-    downloadButton.disabled = false;
+    if (button) button.disabled = false;
   }
-});
+}
 
 async function initialize() {
   if (!getPassword()) {
